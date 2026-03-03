@@ -1,4 +1,4 @@
-
+﻿
 package com.example.zafire.sistemadetallertecnico
 
 import androidx.compose.animation.AnimatedVisibility
@@ -115,7 +115,7 @@ private val AppTypography = Typography(
 
 @Composable
 fun App() {
-    var isAuthenticated by remember { mutableStateOf(false) }
+    var isAuthenticated by remember { mutableStateOf(FirebaseAuthClient.hasActiveSession()) }
     var showRegister by remember { mutableStateOf(false) }
     var isDark by remember { mutableStateOf(false) }
 
@@ -134,7 +134,10 @@ fun App() {
                 MainApp(
                     isDark = isDark,
                     onToggleDark = { isDark = !isDark },
-                    onLogout = { isAuthenticated = false }
+                    onLogout = {
+                        FirebaseAuthClient.signOut()
+                        isAuthenticated = false
+                    }
                 )
             }
         }
@@ -147,9 +150,11 @@ private fun LoginScreen(
     onToggleRegister: () -> Unit,
     onLogin: () -> Unit
 ) {
+    val firebaseEnabled = remember { FirebaseAuthClient.isConfigured() }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSubmitting by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LoginBackground()
@@ -179,11 +184,11 @@ private fun LoginScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = if (showRegister) "Crear Cuenta" else "Iniciar Sesion",
+                                text = if (showRegister) "Crear Cuenta" else "Iniciar SesiÃ³n",
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
-                                text = "Accede a tu cuenta de GlzRepair",
+                                text = "Pon tus credenciales para tener acceso a la base de datos",
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -200,7 +205,7 @@ private fun LoginScreen(
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Contrasena") },
+                        label = { Text("ContraseÃ±a") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -218,15 +223,38 @@ private fun LoginScreen(
                             errorMessage = when {
                                 email.isBlank() -> "Ingresa tu email."
                                 password.isBlank() -> "Ingresa tu contrasena."
+                                !firebaseEnabled -> "Configura Firebase para poder autenticar."
                                 else -> null
                             }
                             if (errorMessage == null) {
-                                onLogin()
+                                isSubmitting = true
+                                val authAction = if (showRegister) {
+                                    FirebaseAuthClient::signUp
+                                } else {
+                                    FirebaseAuthClient::signIn
+                                }
+                                authAction(email.trim(), password) { firebaseError ->
+                                    isSubmitting = false
+                                    if (firebaseError == null) {
+                                        onLogin()
+                                    } else {
+                                        errorMessage = firebaseError
+                                    }
+                                }
                             }
                         },
+                        enabled = !isSubmitting,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(if (showRegister) "Registrarse" else "Iniciar Sesion")
+                        Text(
+                            if (isSubmitting) {
+                                "Procesando..."
+                            } else if (showRegister) {
+                                "Registrarse"
+                            } else {
+                                "Iniciar Sesion"
+                            }
+                        )
                     }
 
                     TextButton(
@@ -237,7 +265,7 @@ private fun LoginScreen(
                             text = if (showRegister) {
                                 "Ya tienes cuenta? Inicia sesion"
                             } else {
-                                "No tienes cuenta? Registrate"
+                                "Registrar nuevo usuario"
                             }
                         )
                     }
@@ -1338,6 +1366,7 @@ private fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier {
         detectTapGestures { onClick() }
     }
 }
+
 
 
 

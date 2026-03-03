@@ -1,4 +1,4 @@
-rootProject.name = "sistemadetallertecnico"
+rootProject.name = "Sistema-de-Taller-Tecnico"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
